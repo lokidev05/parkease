@@ -185,7 +185,20 @@ razorpay.key.secret=your_razorpay_secret
 
 ## Screenshots
 
-> Add screenshots of the login page, user dashboard, parking grid, booking modal, payment flow, and admin dashboard here.
+### Login
+![Login](screenshots/login.png)
+
+### Parking Grid
+![Parking Grid](screenshots/parkinggrid.png)
+
+### Booking
+![Booking](screenshots/booking.png)
+
+### Admin Dashboard
+![Admin](screenshots/admin.png)
+
+### Payment
+![Payment](screenshots/payment.png)
 
 ---
 
