@@ -36,24 +36,69 @@ export default function UserDashboard() {
   };
 
   const handleBook = async () => {
-    if (!selectedSlot) return;
-    setLoading(true);
-    setMessage('');
-    try {
-      await API.post('/bookings', {
-        slotId: selectedSlot.id,
-        durationHours: duration
-      });
-      setMessage('Booking confirmed!');
-      setSelectedSlot(null);
-      fetchSlots();
-      fetchMyBookings();
-    } catch (err) {
-      setMessage(err.response?.data?.message || 'Booking failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (!selectedSlot) return;
+  setLoading(true);
+  setMessage('');
+  try {
+    // Step 1 — Create booking first
+    const bookingRes = await API.post('/bookings', {
+      slotId: selectedSlot.id,
+      durationHours: duration
+    });
+    const booking = bookingRes.data;
+
+    // Step 2 — Create Razorpay order
+    const orderRes = await API.post('/payments/create-order', {
+      bookingId: booking.id,
+      amount: booking.totalAmount
+    });
+    const order = orderRes.data;
+
+    // Step 3 — Open Razorpay checkout
+    const options = {
+      key: order.keyId,
+      amount: order.amount * 100,
+      currency: order.currency,
+      name: 'ParkEase',
+      description: `Slot ${booking.slotNumber} — ${booking.durationHours} hour(s)`,
+      order_id: order.orderId,
+      handler: async function (response) {
+        // Step 4 — Verify payment
+        await API.post('/payments/verify', {
+          razorpayOrderId: response.razorpay_order_id,
+          razorpayPaymentId: response.razorpay_payment_id,
+          razorpaySignature: response.razorpay_signature,
+          bookingId: booking.id
+        });
+        setMessage('Payment successful! Booking confirmed.');
+        setSelectedSlot(null);
+        fetchSlots();
+        fetchMyBookings();
+      },
+      prefill: {
+        name: user?.name,
+        email: user?.email
+      },
+      theme: {
+        color: '#2563eb'
+      },
+      modal: {
+        ondismiss: function() {
+          setMessage('Payment cancelled.');
+          setLoading(false);
+        }
+      }
+    };
+
+    const razorpay = new window.Razorpay(options);
+    razorpay.open();
+
+  } catch (err) {
+    setMessage(err.response?.data?.message || 'Payment failed');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const getSlotColor = (status, type) => {
     if (status === 'OCCUPIED') return 'bg-red-500/20 border-red-500/50 text-red-400';
